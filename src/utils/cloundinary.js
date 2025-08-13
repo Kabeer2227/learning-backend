@@ -15,7 +15,7 @@ cloudinary.config({
 export const uploadFile = async (localFilePath) => {
     try {
         if (!localFilePath) return null
-        const response = await cloudinary.uploader.upload(localFilePath, {
+        const response =  cloudinary.uploader.upload(localFilePath, {
             resource_type: 'auto'
         })
         fs.unlinkSync(localFilePath) // remove local file path
