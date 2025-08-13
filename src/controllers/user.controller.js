@@ -24,7 +24,7 @@ export const registerUser = asyncHandler(async (req, res) => {
     }
     //check if user already exists - username, email
 
-    const doesUserExist = User.findOne({
+    const doesUserExist = await User.findOne({
         $or: [{ userName }, { email }]
     })
     if (doesUserExist) {
@@ -39,6 +39,11 @@ export const registerUser = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
         throw new ApiError(403, "Avatar image is required!!");
     }
+
+     if (!coverImageLocalPath) {
+        throw new ApiError(403, "Cover image is required!!");
+    }
+
 
     //upload them to cloudinary
 
@@ -62,7 +67,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
     // remove password and tokens from response
 
-    const createdUser = await User.findById(User._id).select(
+    const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     )
     if (!createdUser) {
@@ -71,7 +76,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
 
     // return response.
-
+    console.log(user)
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered successfully")
     )
