@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 
 export const generateTokens = async (userId) => {
     try {
-        const user = User.findById(userId)
+        const user = await User.findById(userId)
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
 
@@ -15,7 +15,7 @@ export const generateTokens = async (userId) => {
         return { accessToken, refreshToken }
 
     } catch (error) {
-        throw new ApiError(500, "Error while generating tokens", error)
+        throw new Error(error)
     }
 }
 
@@ -104,7 +104,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     const { userName, email, password } = req.body
     // validate the input
     if (
-        (userName.trim() && email.trim()) === ""
+        (!(userName || email))
     ) {
         throw new ApiError(400, "Enter either username or password")
     }
