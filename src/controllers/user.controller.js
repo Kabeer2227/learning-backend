@@ -3,6 +3,12 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { uploadFile } from "../utils/cloundinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import jwt from "jsonwebtoken"
+
+const options = {
+            httpOnly: true,
+            secure: true
+        }
 
 export const generateTokens = async (userId) => {
     try {
@@ -150,29 +156,57 @@ export const loginUser = asyncHandler(async (req, res) => {
 })
 
 export const logoutUser = asyncHandler(async (req, res) => {
-   try {
-     await User.findByIdAndUpdate(
-         req.user._id, {
-         $set: {
-             refreshToken: undefined
-         },
- 
-     }, {
-         new: true
-     }
-     )
- 
-     const options = {
-         httpOnly: true,
-         secure: true
-     }
- 
-     return res
-         .status(200)
-         .clearCookie("accessToken", options)
-         .clearCookie("refreshToken", options)
-         .json(new ApiResponse(200, {}, "User Logged Out"))
-   } catch (error) {
+    try {
+        await User.findByIdAndUpdate(
+            req.user._id, {
+            $set: {
+                refreshToken: undefined
+            },
+
+        }, {
+            new: true
+        }
+        )
+
+        
+
+        return res
+            .status(200)
+            .clearCookie("accessToken", options)
+            .clearCookie("refreshToken", options)
+            .json(new ApiResponse(200, {}, "User Logged Out"))
+    } catch (error) {
         throw new ApiError(501, "Error logging out", error)
-   }
+    }
+})
+
+/*
+ * Controller to refresh access token in case the access token times out.
+ * Instead of logging in again, we can use the refresh token to refresh the access token.
+ */
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+    try {
+        const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+        if (!incomingRefreshToken) throw new ApiError(400, "Invalid Request", error);
+        const decodedRefreshToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN)
+
+        const user = await User.findById(decodedRefreshToken._id)
+
+        if (!user) throw new ApiError(400, "Invalid Refresh Token");
+
+        if (incomingRefreshToken !== user.refreshToken) throw new ApiError(400, "Invalid Refresh Token");
+
+        
+
+        const {refreshToken, accessToken} = await generateTokens(user._id);
+
+        res.status(200)
+        .cookie("accessToken",accessToken,options)
+        .cookie("refreshTOken",refreshToken,options)
+        .json(new ApiResponse(200, {accessToken, refreshToken},"Tokens Refreshed"))
+
+    } catch (error) {
+        throw new ApiError(500, "Internal Server Error, please log in again", error)
+    }
+
 })
