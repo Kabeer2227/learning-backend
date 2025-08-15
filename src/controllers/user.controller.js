@@ -4,11 +4,12 @@ import { User } from "../models/user.model.js"
 import { uploadFile } from "../utils/cloundinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import { error } from "console"
 
 const options = {
-            httpOnly: true,
-            secure: true
-        }
+    httpOnly: true,
+    secure: true
+}
 
 export const generateTokens = async (userId) => {
     try {
@@ -168,7 +169,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
         }
         )
 
-        
+
 
         return res
             .status(200)
@@ -196,17 +197,107 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
         if (incomingRefreshToken !== user.refreshToken) throw new ApiError(400, "Invalid Refresh Token");
 
-        
 
-        const {refreshToken, accessToken} = await generateTokens(user._id);
+
+        const { refreshToken, accessToken } = await generateTokens(user._id);
 
         res.status(200)
-        .cookie("accessToken",accessToken,options)
-        .cookie("refreshTOken",refreshToken,options)
-        .json(new ApiResponse(200, {accessToken, refreshToken},"Tokens Refreshed"))
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshTOken", refreshToken, options)
+            .json(new ApiResponse(200, { accessToken, refreshToken }, "Tokens Refreshed"))
 
     } catch (error) {
         throw new ApiError(500, "Internal Server Error, please log in again", error)
     }
+
+})
+
+export const changeCurrentPassword = asyncHandler(async (req, res) => { // use auth middle ware
+    try {
+        const { oldPassword, newPassword } = req
+        const user = await User.findById(req.user?._id);
+        const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+        if (!isPasswordCorrect) {
+            throw new ApiError(400, "Old password is incorrect");
+        }
+        user.password = newPassword
+        await user.save({ validateBeforeSave: false })
+        return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully"))
+    } catch (error) {
+        throw new ApiError(500, "Internal Server Error, can not change password")
+    }
+})
+
+export const getCurrentUser = asyncHandler(async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) throw new ApiError(500, "Can not get current user");
+        return res.status(200).json(new ApiResponse(200, user, "User successfully retrived"))
+    } catch (error) {
+        throw new ApiError(500, "Internal Server Error, can not retrive user exception", error)
+    }
+})
+
+export const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { userName } = req.params
+
+    if (!userName) throw new ApiError(400, "username missing");
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                userName: userName?.toLowerCase()
+            }
+        }, {
+            $lookup: {
+                from: "subscriptons",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        }, {
+            $lookup: {
+                from: "subscriptons",
+                localField: "_id",
+                foreignField: "subscribers",
+                as: "suscribedTo"
+            }
+        }, {
+            $addFields: {
+                suscriberCount: {
+                    $size: "$suscribers"
+                },
+                suscribedToCount: {
+                    $size: "$suscribedTo"
+                },
+                isSuscribed: {
+                    $cond: {
+                        if: {
+                            $in: [req.user?._id, "$suscribers.suscriber"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },{
+            $project:{
+                fullName:1,
+                userName:1,
+                suscriberCount:1,
+                suscribedToCount:1,
+                isSuscribed:1,
+
+            }
+        }
+    ])
+
+    console.log(channel)
+
+    if(!channel.length) throw new ApiError(500,"channel does not exist");
+
+    return res.status(200).json(
+        200, new ApiResponse(200, channel[0], "User channel displayed")
+    )
 
 })
