@@ -241,9 +241,9 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 export const getUserChannelProfile = asyncHandler(async (req, res) => {
     try {
         const { userName } = req.params
-    
+
         if (!userName) throw new ApiError(400, "username missing");
-    
+
         const channel = await User.aggregate([
             {
                 $match: {
@@ -281,27 +281,27 @@ export const getUserChannelProfile = asyncHandler(async (req, res) => {
                         }
                     }
                 }
-            },{
-                $project:{
-                    fullName:1,
-                    userName:1,
-                    suscriberCount:1,
-                    suscribedToCount:1,
-                    isSuscribed:1,
-    
+            }, {
+                $project: {
+                    fullName: 1,
+                    userName: 1,
+                    suscriberCount: 1,
+                    suscribedToCount: 1,
+                    isSuscribed: 1,
+
                 }
             }
         ])
-    
+
         console.log(channel)
-    
-        if(!channel.length) throw new ApiError(500,"channel does not exist");
-    
+
+        if (!channel.length) throw new ApiError(500, "channel does not exist");
+
         return res.status(200).json(
             200, new ApiResponse(200, channel[0], "User channel displayed")
         )
     } catch (error) {
-        throw new ApiError(500,"Internal Server Error",error.message)
+        throw new ApiError(500, "Internal Server Error", error.message)
     }
 
 })
